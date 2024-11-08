@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% load static %}
 {% block container %}
-<div class="max-w-md mx-auto bg-white shadow-md rounded-lg p-6">
+<div class="max-w-md mx-auto bg-white shadow-md rounded-lg p-6 mb-8">
     <h2 class="text-2xl font-semibold text-gray-800 mb-4">Add Expense</h2>
     <form method="POST" class="space-y-4">
         {% csrf_token %}
 
         <!-- Name Field -->
         <div>
-            <label for="id_name" class="block text-sm font-medium text-gray-700">Name</label>
+            <label for="id_name" class="block text-sm font-medium text-gray-700">Expense Name</label>
             <input type="text" name="name" id="id_name" 
                    class="mt-1 p-2 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
             {% if form.name.errors %}
@@ -19,7 +19,7 @@
         <!-- Amount Field -->
         <div>
             <label for="id_amount" class="block text-sm font-medium text-gray-700">Amount</label>
-            <input type="number" name="amount" id="id_amount" value="" 
+            <input type="number" name="amount" id="id_amount" 
                    class="mt-1 p-2 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
             {% if form.amount.errors %}
                 <p class="text-red-600 text-sm mt-1">{{ form.amount.errors.0 }}</p>
@@ -29,19 +29,179 @@
         <!-- Category Field -->
         <div>
             <label for="id_category" class="block text-sm font-medium text-gray-700">Category</label>
-            <select name="category" id="id_category" 
-                    class="mt-1 p-2 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
-                {% for choice in form.category.field.choices %}
-                    <option value="{{ choice.0 }}" {% if choice.0 == form.category.value %}selected{% endif %}>{{ choice.1 }}</option>
-                {% endfor %}
-            </select>
+            <input type="text" name="category" id="id_category" 
+                    class="mt-1 p-2 block w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" />
             {% if form.category.errors %}
                 <p class="text-red-600 text-sm mt-1">{{ form.category.errors.0 }}</p>
             {% endif %}
         </div>
 
         <!-- Submit Button -->
-        <button type="submit" class="w-full bg-indigo-500 text-white font-semibold p-2 rounded-md shadow hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Submit</button>
+        <button type="submit" class="w-full bg-indigo-500 text-white font-semibold p-2 rounded-md shadow hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Add</button>
     </form>
 </div>
+
+<!-- Expenses Table -->
+<div class="max-w-5xl mx-auto bg-white shadow-md rounded-lg p-6">
+    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Expenses</h2>
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
+            <thead>
+                <tr class="bg-indigo-100">
+                    <th class="py-3 px-5 border-b-2 text-left text-sm font-semibold text-gray-700">Expense Name</th>
+                    <th class="py-3 px-5 border-b-2 text-left text-sm font-semibold text-gray-700">Amount</th>
+                    <th class="py-3 px-5 border-b-2 text-left text-sm font-semibold text-gray-700">Category</th>
+                    <th class="py-3 px-5 border-b-2 text-left text-sm font-semibold text-gray-700">Date</th>
+                    <th class="py-3 px-5 border-b-2 text-center text-sm font-semibold text-gray-700">Edit</th>
+                    <th class="py-3 px-5 border-b-2 text-center text-sm font-semibold text-gray-700">Delete</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expense in expenses %}
+                <tr id="edit-row-{{expense.id}}" class="hover:bg-gray-50 transition duration-150">
+                    <td class="py-3 px-5 border-b text-gray-700">{{ expense.name }}</td>
+                    <td class="py-3 px-5 border-b text-gray-700">{{ expense.amount }}</td>
+                    <td class="py-3 px-5 border-b text-gray-700">{{ expense.category }}</td>
+                    <td class="py-3 px-5 border-b text-gray-700">{{ expense.date }}</td>
+                    <!-- Edit Button -->
+                    <td class="py-3 px-5 border-b text-center">
+                        <button id="edit-{{expense.id}}"class="edit-button bg-blue-500 text-white py-1 px-3 rounded-md hover:bg-blue-600 font-semibold">Edit</button>
+                    </td>                    
+                    <!-- Delete Button -->
+                    <td class="py-3 px-5 border-b text-center">
+                        <button id="delete-{{expense.id}}" class="delete-button bg-red-500 text-white py-1 px-3 rounded-md hover:bg-red-600 font-semibold">Delete</button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="py-4 px-5 text-center text-gray-500">No expenses found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{total_expense}}
+</div>
+
+<script>
+    $(document).ready(function(){
+
+        $.ajaxSetup({
+            headers: { "X-CSRFToken": "{{ csrf_token }}" }
+        });
+
+        var previousEditRow = 0;
+
+        function resetRow(id, name, amount, category, date){
+            resetHtml = `<td class="py-3 px-5 border-b text-gray-700">${name}</td>
+                    <td class="py-3 px-5 border-b text-gray-700">${amount}</td>
+                    <td class="py-3 px-5 border-b text-gray-700">${category}</td>
+                    <td class="py-3 px-5 border-b text-gray-700">${date}</td>
+                    <td class="py-3 px-5 border-b text-center">
+                        <button id="edit-${id}"class="edit-button bg-blue-500 text-white py-1 px-3 rounded-md hover:bg-blue-600 font-semibold">Edit</button>
+                    </td>                    
+                    <td class="py-3 px-5 border-b text-center">
+                        <button id="delete-${id}" class="delete-button bg-red-500 text-white py-1 px-3 rounded-md hover:bg-red-600 font-semibold">Delete</button>
+                    </td>`;
+            return resetHtml;
+        }
+
+        function editData(id, name, amount, category, date) {
+            var editHtml = `
+                <td class="py-3 px-5 border-b text-gray-700">
+                    <input id="edit-name-input" type="text" value="${name}" class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </td>
+                <td class="py-3 px-5 border-b text-gray-700">
+                    <input id="edit-amount-input" type="text" value="${amount}" class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </td>
+                <td class="py-3 px-5 border-b text-gray-700">
+                    <input id="edit-category-input" type="text" value="${category}" class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </td>
+                <td id="edit-date-td" class="py-3 px-5 border-b text-gray-700">${date}</td>
+                <!-- Edit Button -->
+                <td class="py-3 px-5 border-b text-center">
+                    <button id="edit-done-${id}" class="edit-done-button bg-blue-500 text-white py-1 px-3 rounded-md hover:bg-blue-600 font-semibold">Done</button>
+                </td>
+                <!-- Delete Button -->
+                <td class="py-3 px-5 border-b text-center">
+                    <button id="edit-cancel-${id}" class="edit-cancel-button bg-gray-500 text-white py-1 px-3 rounded-md hover:bg-gray-600 font-semibold">Cancel</button>
+                </td>`;
+        
+            return editHtml;
+        }
+        
+
+        $(document).on('click', '.edit-button' ,function(){
+            var id = +$(this).attr('id').split('-')[1];
+           
+            if(previousEditRow == 0){
+                var parentId = $(this).closest('tr').attr('id');
+                var expenseName = $(`#${parentId}`).find('td').eq(0).text();
+                var expenseAmount = +$(`#${parentId}`).find('td').eq(1).text();
+                var expenseCategory = $(`#${parentId}`).find('td').eq(2).text();
+                var expenseDate = $(`#${parentId}`).find('td').eq(3).text();
+                $(`#${parentId}`).html(editData(id, expenseName, expenseAmount, expenseCategory, expenseDate));
+                previousEditRow = parentId;
+            }else{
+                // Clearing previous row from edit
+                var expenseName = $(`#${previousEditRow}`).find('td input').eq(0).val();
+                var expenseAmount = +$(`#${previousEditRow}`).find('td input').eq(1).val();
+                var expenseCategory = $(`#${previousEditRow}`).find('td input').eq(2).val();
+                var expenseDate = $(`#${previousEditRow}`).find('td').eq(3).text();
+                $(`#${previousEditRow}`).html(resetRow(previousEditRow, expenseName, expenseAmount, expenseCategory, expenseDate));
+
+                // Add cururent row as edit
+                parentId = $(this).closest('tr').attr('id');
+                expenseName = $(`#${parentId}`).find('td').eq(0).text();
+                expenseAmount = +$(`#${parentId}`).find('td').eq(1).text();
+                expenseCategory = $(`#${parentId}`).find('td').eq(2).text();
+                expenseDate = $(`#${parentId}`).find('td').eq(3).text();
+                $(`#${parentId}`).html(editData(id, expenseName, expenseAmount, expenseCategory, expenseDate));
+                previousEditRow = parentId;
+
+            }
+            $(`#edit-cancel-${id}`).click(function(){
+                $(`#${parentId}`).html(resetRow(id, expenseName, expenseAmount, expenseCategory, expenseDate));
+                previousEditRow = id;
+            });
+            $(`#edit-done-${id}`).click(function(){
+                let editId = id
+                let editName = $('#edit-name-input').val();
+                let editAmount = $('#edit-amount-input').val();
+                let editCategory = $('#edit-category-input').val();
+                let editDate = $('#edit-date-td').text();
+
+                $.ajax({
+                    url : '{% url "update_expense" %}',
+                    type : 'POST',
+                    data : {
+                        'id': editId,
+                        'name' : editName,
+                        'amount' : editAmount,
+                        'category' : editCategory,
+                    },
+                    success : function(res){
+                        $(`#${parentId}`).html(resetRow(editId, editName, editAmount, editCategory, editDate));
+                        previousEditRow = id;
+                    },
+                });
+            });
+        });
+
+        $(document).on('click', '.delete-button', function(){
+            var deleteStr = $(this).attr('id');
+            var deleteId = +deleteStr.split('-')[1];
+            $.ajax({
+                url: '{% url "delete_expense" %}',
+                type: 'POST',
+                data: {
+                    'id' : deleteId,
+                },
+                success: function(res){
+                    $(`#${deleteStr}`).closest('tr').slideUp();
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}
